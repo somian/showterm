@@ -77,27 +77,32 @@ fi
 echo "showterm recording. (Exit shell CTRL-D when done.)"
 script $args -q -t"$timingfile" "$scriptfile"
 
-cURLo="--show-error --silent --ipv4" # "--dns-servers 4.2.2.2"
+cURLo="--show-error --silent --ipv4"
 printf '%sUploading to server %s ...\033[0m:\033[2K\r' "$fgOST" "$server" && sleep 1
 curl $cURLo "$url" --data-urlencode "cols=$cols" --data-urlencode "lines=$lines" --data-urlencode "scriptfile@$scriptfile" --data-urlencode "timingfile@$timingfile" "secret@$shtsession/showterm" \
  2>/tmp/curl-error.log && printf '\r\n'
+
+# Store the return error code from curl
 cURL_ERR=$?
+
+# We are relying on curl. This is an external program. It may develop bugs. One such
+# bug incited this rewrite. So inform the user that the upload succeeded, when it does,
+# to enhance confidence and convey information to compare to failure modes that the
+# user (like, uhh, me) may have seen from older _showterm_ revisions.
 if [ $cURL_ERR -eq 0 ]
 then
     printf '\n%sTried and succeeded to upload to server %s\n' "$fgOST" "$server"
     rm "$scriptfile" "$timingfile"
-    printf '\n'
+    printf '\n'  #  print a blank line. Prefer printf over echo.
     exit 0
 elif [ $cURL_ERR -eq 6 ]
 then
-    printf '\n%sUploading probably succeeded, but error code 6 was returned, not 0 ...in any case your work is safe.' "$fgWER"
+    printf '\n%sUploading probably succeeded, but ec 6 (a spurious false error) was returned ...in any case your work is safe.' "$fgWER"
     printf '\nIf no URL was shown, try uploading manually using:\n'
     echo curl $cURLo "$url" --data-urlencode "cols=$cols" --data-urlencode "lines=$lines" --data-urlencode "scriptfile@$scriptfile" --data-urlencode "timingfile@$timingfile" "secret@$shtsession/showterm"
 else
-    printf '\n%sUploading probably failed, error code %s ...but do not worry! Your work is safe.' "$fgWER" "$cURL_ERR"
-    printf '\n'
+    printf '\n%sUploading probably failed, error code %s ...but do not worry! Your work is safe.\n' "$fgWER" "$cURL_ERR"
     printf '%sYou can try uploading again with: ' "$fgOST"
     echo curl $cURLo "$url" --data-urlencode "cols=$cols" --data-urlencode "lines=$lines" --data-urlencode "scriptfile@$scriptfile" --data-urlencode "timingfile@$timingfile" "secret@$shtsession/showterm"
 fi
-# Newline
-printf '\n'
+# E O Code
