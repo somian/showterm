@@ -74,16 +74,18 @@ then
     echo -n $(openssl rand -hex 16) > "$shtsession/showterm"
 fi
 
-echo "showterm recording. (Exit shell CTRL-D when done.)"
+printf '%sUploading to server %s ...\033[0m;\033[2K\r' "$fgOST" "$server" && sleep 1
+printf "showterm recording. (Exit shell CTRL-D when done.)"
+
 script $args -q -t"$timingfile" "$scriptfile"
 
 cURLo="--show-error --silent --ipv4"
-printf '%sUploading to server %s ...\033[0m:\033[2K\r' "$fgOST" "$server" && sleep 1
 curl $cURLo "$url" --data-urlencode "cols=$cols" --data-urlencode "lines=$lines" --data-urlencode "scriptfile@$scriptfile" --data-urlencode "timingfile@$timingfile" "secret@$shtsession/showterm" \
  2>/tmp/curl-error.log && printf '\r\n'
 
 # Store the return error code from curl
 cURL_ERR=$?
+# System error for command not found is generally 127 # (( YO )) #
 
 # We are relying on curl. This is an external program. It may develop bugs. One such
 # bug incited this rewrite. So inform the user that the upload succeeded, when it does,
@@ -97,12 +99,25 @@ then
     exit 0
 elif [ $cURL_ERR -eq 6 ]
 then
-    printf '\n%sUploading probably succeeded, but ec 6 (a spurious false error) was returned ...in any case your work is safe.' "$fgWER"
-    printf '\nIf no URL was shown, try uploading manually using:\n'
-    echo curl $cURLo "$url" --data-urlencode "cols=$cols" --data-urlencode "lines=$lines" --data-urlencode "scriptfile@$scriptfile" --data-urlencode "timingfile@$timingfile" "secret@$shtsession/showterm"
+    printf '\n%sUploading probably succeeded, but ec 6 (a spurious false error:\n\t"(6) Could not resolve host") was returned \
+...in any case your work is safe.\033[0m' \
+                                            "$fgWER"
+    printf '\nIf no URL was shown, try uploading manually using:\n\n'
+    echo curl $cURLo "$url" --data-urlencode "cols=$cols" --data-urlencode "lines=$lines" \
+--data-urlencode "scriptfile@$scriptfile" \
+--data-urlencode "timingfile@$timingfile" \
+"secret@$shtsession/showterm"
+    echo -e "\n\n"
 else
-    printf '\n%sUploading probably failed, error code %s ...but do not worry! Your work is safe.\n' "$fgWER" "$cURL_ERR"
-    printf '%sYou can try uploading again with: ' "$fgOST"
+        if [ $cURL_ERR -eq 127 ]
+        then
+    printf '\n%s\n' "Uploading definitely failed, error code 127 is 'command not found' - you do not have curl! - install it!"
+        else 
+    printf '\n%sUploading probably failed, error code %s\n' "$fgWER" "$cURL_ERR"
+        fi
+    printf ' ...but do not worry! Your work is safe.\n%sYou can try uploading again with: \033[44m;\n\n' "$fgOST"
+
     echo curl $cURLo "$url" --data-urlencode "cols=$cols" --data-urlencode "lines=$lines" --data-urlencode "scriptfile@$scriptfile" --data-urlencode "timingfile@$timingfile" "secret@$shtsession/showterm"
+    printf '\n\033[0m\n\n'
 fi
 # E O Code
